@@ -25,6 +25,7 @@ services:
       - teste-fullstack
     depends_on:
       - app
+      - node
 
   mysql:
     image: mysql:8.0
@@ -66,6 +67,16 @@ services:
     depends_on:
       - mysql
       - redis
+
+  node:
+    image: node:20-alpine
+    container_name: teste-fullstack-node
+    working_dir: /var/www
+    volumes:
+      - ./:/var/www
+    command: sh -c "npm install && npm run build"
+    networks:
+      - teste-fullstack
 
   n8n:
     image: n8nio/n8n
