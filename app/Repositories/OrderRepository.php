@@ -37,6 +37,12 @@ class OrderRepository
             $query->where('total', '<=', $filters['max_value']);
         }
 
+        if (!empty($filters['search'])) {
+            $query->whereHas('affiliate', function ($q) use ($filters) {
+                $q->where('name', 'like', '%' . $filters['search'] . '%');
+            })->orWhere('id', $filters['search']);
+        }
+
         $sortBy  = $filters['sort_by']  ?? 'created_at';
         $sortDir = $filters['sort_dir'] ?? 'desc';
 
@@ -56,20 +62,35 @@ class OrderRepository
             ->find($id);
     }
 
-    public function getMetrics(): array
+    public function getMetrics(array $filters = []): array
     {
+        $where  = "WHERE deleted_at IS NULL";
+        $params = [];
+
+        if (!empty($filters['date_from'])) {
+            $where   .= " AND DATE(created_at) >= ?";
+            $params[] = $filters['date_from'];
+        }
+
+        if (!empty($filters['date_to'])) {
+            $where   .= " AND DATE(created_at) <= ?";
+            $params[] = $filters['date_to'];
+        }
+
         return DB::select("
-            SELECT
-                COUNT(*) as total_orders,
-                SUM(CASE WHEN status = 'approved' THEN total ELSE 0 END) as total_revenue,
-                AVG(CASE WHEN status = 'approved' THEN total ELSE NULL END) as average_ticket,
-                SUM(CASE WHEN status = 'pending'   THEN 1 ELSE 0 END) as pending_count,
-                SUM(CASE WHEN status = 'approved'  THEN 1 ELSE 0 END) as approved_count,
-                SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled_count,
-                SUM(CASE WHEN status = 'refunded'  THEN 1 ELSE 0 END) as refunded_count
-            FROM orders
-            WHERE deleted_at IS NULL
-        ");
+        SELECT
+            COUNT(*) as total_orders,
+            SUM(CASE WHEN status = 'approved' THEN total ELSE 0 END) as total_revenue,
+            SUM(CASE WHEN status = 'pending'  THEN total ELSE 0 END) as pending_revenue,
+            SUM(CASE WHEN status = 'refunded' THEN total ELSE 0 END) as refunded_revenue,
+            AVG(CASE WHEN status IN ('approved','refunded') THEN total ELSE NULL END) as average_ticket,
+            SUM(CASE WHEN status = 'pending'   THEN 1 ELSE 0 END) as pending_count,
+            SUM(CASE WHEN status = 'approved'  THEN 1 ELSE 0 END) as approved_count,
+            SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled_count,
+            SUM(CASE WHEN status = 'refunded'  THEN 1 ELSE 0 END) as refunded_count
+        FROM orders
+        {$where}
+    ", $params);
     }
 
     public function getAffiliateSummary(int $affiliateId): array

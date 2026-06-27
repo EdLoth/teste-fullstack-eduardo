@@ -22,6 +22,7 @@ class ListOrdersRequest extends FormRequest
             'max_value'    => 'nullable|numeric|min:0',
             'sort_by'      => 'nullable|in:id,total,status,created_at',
             'sort_dir'     => 'nullable|in:asc,desc',
+            'search'       => 'nullable|string|max:100',
         ];
     }
 }

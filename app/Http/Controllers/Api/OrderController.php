@@ -8,6 +8,7 @@ use App\Http\Requests\UpdateOrderStatusRequest;
 use App\Models\Order;
 use App\Services\OrderService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class OrderController extends Controller
 {
@@ -44,10 +45,10 @@ class OrderController extends Controller
         return response()->json(['data' => $order]);
     }
 
-    public function metrics(): JsonResponse
+    public function metrics(Request $request): JsonResponse
     {
         return response()->json([
-            'data' => $this->service->getMetrics(),
+            'data' => $this->service->getMetrics($request->only(['date_from', 'date_to'])),
         ]);
     }
 
@@ -70,7 +71,6 @@ class OrderController extends Controller
             );
 
             return response()->json(['data' => $order]);
-
         } catch (\InvalidArgumentException $e) {
             return response()->json([
                 'data'   => null,

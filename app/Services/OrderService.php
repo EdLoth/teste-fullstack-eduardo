@@ -8,6 +8,7 @@ use App\Repositories\OrderRepository;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class OrderService
 {
@@ -25,17 +26,22 @@ class OrderService
         return $this->repository->findWithDetails($id);
     }
 
-    public function getMetrics(): array
+    public function getMetrics(array $filters = []): array
     {
+        // Filtros de data não são cacheados — consultas específicas demais
+        if (!empty($filters['date_from']) || !empty($filters['date_to'])) {
+            $metrics = $this->repository->getMetrics($filters);
+            return (array) $metrics[0];
+        }
+
         return Cache::remember('orders:metrics', 300, function () {
-            $metrics = $this->repository->getMetrics();
+            $metrics = $this->repository->getMetrics([]);
             return (array) $metrics[0];
         });
     }
 
     public function updateStatus(Order $order, string $newStatus, ?string $reason = null): Order
     {
-        // Verifica se a transição é válida
         if (!$order->canTransitionTo($newStatus)) {
             throw new \InvalidArgumentException(
                 "Transição inválida: não é possível mover de '{$order->status}' para '{$newStatus}'."
@@ -45,22 +51,28 @@ class OrderService
         DB::transaction(function () use ($order, $newStatus, $reason) {
             $previousStatus = $order->status;
 
-            // Atualiza o status do pedido
             $order->update(['status' => $newStatus]);
 
-            // Registra no log de auditoria
             $order->statusLogs()->create([
                 'previous_status' => $previousStatus,
                 'new_status'      => $newStatus,
                 'changed_by'      => 'system',
                 'reason'          => $reason,
             ]);
-
-            // Invalida o cache de métricas
-            Cache::forget('orders:metrics');
         });
 
+        $this->flushMetricsCache();
+
         return $order->fresh(['items.product', 'statusLogs']);
+    }
+
+    private function flushMetricsCache(): void
+    {
+        try {
+            Cache::forget('orders:metrics');
+        } catch (\Exception $e) {
+            Log::warning('flushMetricsCache falhou: ' . $e->getMessage());
+        }
     }
 
     public function getAffiliateSummary(int $affiliateId): array
