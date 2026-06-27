@@ -61,7 +61,7 @@ services:
     working_dir: /var/www
     volumes:
       - ./:/var/www
-    command: php artisan queue:work --queue=sync,default --tries=3 --backoff=3
+    command: sh -c "php artisan queue:work --queue=sync,default --tries=3 --backoff=3 & php artisan schedule:work"
     networks:
       - teste-fullstack
     depends_on:
