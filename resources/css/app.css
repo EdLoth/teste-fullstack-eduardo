@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+* {
+  font-family: 'Inter', sans-serif;
+}
+
+:root {
+  --bg-page:    #f4f4f5;
+  --bg-card:    #ffffff;
+  --bg-header:  #ffffff;
+  --border:     #e4e4e7;
+  --text-main:  #18181b;
+  --text-muted: #71717a;
+  --bg-input:   #f4f4f5;
+}
+
+.dark {
+  --bg-page:    #0f0f11;
+  --bg-card:    #18181b;
+  --bg-header:  #18181b;
+  --border:     #27272a;
+  --text-main:  #fafafa;
+  --text-muted: #71717a;
+  --bg-input:   #27272a;
+}
+
+body {
+  background-color: var(--bg-page);
+  color: var(--text-main);
+  transition: background-color 0.2s, color 0.2s;
+}

@@ -1,0 +1,122 @@
+{
+  "name": "Workflow 1 — Pedido Aprovado",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "order-approved",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-approved",
+      "name": "Webhook — Pedido Aprovado",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "order-approved"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.new_status }}",
+              "rightValue": "approved",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ]
+        }
+      },
+      "id": "filter-approved",
+      "name": "Filtro — new_status = approved",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nreturn [{\n  json: {\n    message: `✅ Pedido #${item.order_id} aprovado — R$ ${item.total_value} | Afiliado #${item.affiliate_id}`,\n    order_id: item.order_id,\n    affiliate_id: item.affiliate_id,\n    total_value: item.total_value,\n    approved_at: item.occurred_at\n  }\n}];"
+      },
+      "id": "format-message",
+      "name": "Formata Mensagem",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://webhook.site/your-unique-url",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "message", "value": "={{ $json.message }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "notify-webhook",
+      "name": "Notificação (webhook.site)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 180]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://webhook.site/your-unique-url-sheets",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "order_id",     "value": "={{ $json.order_id }}" },
+            { "name": "affiliate_id", "value": "={{ $json.affiliate_id }}" },
+            { "name": "total_value",  "value": "={{ $json.total_value }}" },
+            { "name": "approved_at",  "value": "={{ $json.approved_at }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "sheets-approved",
+      "name": "Registra no Sheets (webhook.site mock)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 420]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"status\": \"ok\" }",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Responde OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1200, 300]
+    }
+  ],
+  "connections": {
+    "Webhook — Pedido Aprovado": {
+      "main": [[{ "node": "Filtro — new_status = approved", "type": "main", "index": 0 }]]
+    },
+    "Filtro — new_status = approved": {
+      "main": [[{ "node": "Formata Mensagem", "type": "main", "index": 0 }]]
+    },
+    "Formata Mensagem": {
+      "main": [[
+        { "node": "Notificação (webhook.site)", "type": "main", "index": 0 },
+        { "node": "Registra no Sheets (webhook.site mock)", "type": "main", "index": 0 }
+      ]]
+    },
+    "Notificação (webhook.site)": {
+      "main": [[{ "node": "Responde OK", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2024-03-15T00:00:00.000Z",
+  "versionId": "1"
+}
