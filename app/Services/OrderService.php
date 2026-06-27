@@ -9,6 +9,7 @@ use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Events\OrderStatusChanged;
 
 class OrderService
 {
@@ -48,9 +49,9 @@ class OrderService
             );
         }
 
-        DB::transaction(function () use ($order, $newStatus, $reason) {
-            $previousStatus = $order->status;
+        $previousStatus = $order->status;
 
+        DB::transaction(function () use ($order, $newStatus, $reason, $previousStatus) {
             $order->update(['status' => $newStatus]);
 
             $order->statusLogs()->create([
@@ -62,6 +63,9 @@ class OrderService
         });
 
         $this->flushMetricsCache();
+
+        // Dispara evento — listener enfileira o webhook pro N8N
+        event(new OrderStatusChanged($order, $previousStatus, $newStatus));
 
         return $order->fresh(['items.product', 'statusLogs']);
     }

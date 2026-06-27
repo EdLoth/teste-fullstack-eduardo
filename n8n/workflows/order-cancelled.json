@@ -1,0 +1,152 @@
+{
+  "name": "Workflow 2 — Pedido Cancelado",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "order-cancelled",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-cancelled",
+      "name": "Webhook — Pedido Cancelado",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "order-cancelled"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.new_status }}",
+              "rightValue": "cancelled",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ]
+        }
+      },
+      "id": "filter-cancelled",
+      "name": "Filtro — new_status = cancelled",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=http://app/api/affiliates/{{ $json.affiliate_id }}/summary",
+        "options": {}
+      },
+      "id": "get-affiliate-summary",
+      "name": "Consulta Summary do Afiliado",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.data.cancellation_rate }}",
+              "rightValue": 30,
+              "operator": { "type": "number", "operation": "gt" }
+            }
+          ]
+        }
+      },
+      "id": "check-rate",
+      "name": "Taxa de Cancelamento > 30%?",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [960, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://webhook.site/your-unique-url-alert",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "alert",        "value": "⚠️ Afiliado #{{ $('Webhook — Pedido Cancelado').item.json.affiliate_id }} com alta taxa de cancelamento — atenção!" },
+            { "name": "affiliate_id", "value": "={{ $('Webhook — Pedido Cancelado').item.json.affiliate_id }}" },
+            { "name": "cancellation_rate", "value": "={{ $json.data.cancellation_rate }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "alert-high-rate",
+      "name": "Alerta — Afiliado em Atenção",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 180]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://webhook.site/your-unique-url-sheets",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "order_id",     "value": "={{ $('Webhook — Pedido Cancelado').item.json.order_id }}" },
+            { "name": "affiliate_id", "value": "={{ $('Webhook — Pedido Cancelado').item.json.affiliate_id }}" },
+            { "name": "total_value",  "value": "={{ $('Webhook — Pedido Cancelado').item.json.total_value }}" },
+            { "name": "cancelled_at", "value": "={{ $('Webhook — Pedido Cancelado').item.json.occurred_at }}" },
+            { "name": "status",       "value": "cancelled" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "sheets-cancelled",
+      "name": "Registra no Sheets (webhook.site mock)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 420]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"status\": \"ok\" }",
+        "options": {}
+      },
+      "id": "respond-cancelled",
+      "name": "Responde OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1440, 300]
+    }
+  ],
+  "connections": {
+    "Webhook — Pedido Cancelado": {
+      "main": [[{ "node": "Filtro — new_status = cancelled", "type": "main", "index": 0 }]]
+    },
+    "Filtro — new_status = cancelled": {
+      "main": [[{ "node": "Consulta Summary do Afiliado", "type": "main", "index": 0 }]]
+    },
+    "Consulta Summary do Afiliado": {
+      "main": [[{ "node": "Taxa de Cancelamento > 30%?", "type": "main", "index": 0 }]]
+    },
+    "Taxa de Cancelamento > 30%?": {
+      "main": [
+        [{ "node": "Alerta — Afiliado em Atenção", "type": "main", "index": 0 }],
+        [{ "node": "Registra no Sheets (webhook.site mock)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Alerta — Afiliado em Atenção": {
+      "main": [[{ "node": "Registra no Sheets (webhook.site mock)", "type": "main", "index": 0 }]]
+    },
+    "Registra no Sheets (webhook.site mock)": {
+      "main": [[{ "node": "Responde OK", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2024-03-15T00:00:00.000Z",
+  "versionId": "1"
+}
