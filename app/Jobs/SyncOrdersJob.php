@@ -12,6 +12,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 
 class SyncOrdersJob implements ShouldQueue
 {
@@ -28,6 +29,9 @@ class SyncOrdersJob implements ShouldQueue
 
     public function handle(): void
     {
+
+        Cache::put('worker:heartbeat', now(), 3600);
+
         // Indexa users e products por ID para acesso rápido
         $usersById    = collect($this->users)->keyBy('id');
         $productsById = collect($this->products)->keyBy('id');
